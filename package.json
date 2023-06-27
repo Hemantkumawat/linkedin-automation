@@ -1,10 +1,12 @@
 {
   "name": "linkedin-automation",
+  "type": "module",
   "version": "1.0.0",
   "description": "inviting linkedin connections for event. script to automate inviting Linkedin connections to an event. using Node.js and puppeteer",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node ./src/index.js",
+    "start": "node ./src/index.js"
   },
   "repository": {
     "type": "git",
@@ -23,6 +25,8 @@
   "homepage": "https://github.com/Hemantkumawat/linkedin-automation#readme",
   "dependencies": {
     "dotenv": "^16.3.1",
-    "puppeteer": "^20.7.3"
+    "inquirer": "^9.2.7",
+    "puppeteer": "^20.7.3",
+    "yargs": "^17.7.2"
   }
 }

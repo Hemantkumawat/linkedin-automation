@@ -1,16 +1,18 @@
-const puppeteer = require("puppeteer");
-require("dotenv").config();
+import dotenv from "dotenv";
+import inquirer from "inquirer";
+import puppeteer from "puppeteer";
 
-async function sendEventInvitations(eventId) {
-  if(eventId == undefined){
-    eventId = "testevent7079309015771492352";
-  }
+dotenv.config();
+
+async function sendEventInvitations() {
+  const eventId = await askEventId();
+  // eventId = "testevent7079339831931133952";
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
   const { LINKEDIN_USERNAME, LINKEDIN_PASSWORD } = process.env;
 
   // Login to LinkedIn
-  console.log("Login to LinkedIn")
+  console.log("Login to LinkedIn");
   await page.goto("https://www.linkedin.com/login");
   await page.type("#username", LINKEDIN_USERNAME);
   await page.type("#password", LINKEDIN_PASSWORD);
@@ -21,46 +23,89 @@ async function sendEventInvitations(eventId) {
 
   // Go to the event page
   console.log("Going to the event page");
-  await page.goto(`https://www.linkedin.com/events/${eventId}/comments/`, { timeout: 60000 });
+  await page.goto(`https://www.linkedin.com/events/${eventId}/comments/`, {
+    timeout: 60000,
+  });
 
-  // Get the "Invite connections" button and click it
-  console.log("Clicking on \"Invite connections\" button")
-  await page.waitForSelector(".artdeco-button--primary", { timeout: 60000 });
+  // Get the "Share" button and click it
+  console.log('Clicking on "Share" button');
+  await page.waitForSelector(".artdeco-button--primary");
   await page.click(".artdeco-button--primary");
 
+  // Get the "Invite connections" button and click it
+  console.log('Clicking on "Invite connections" button');
+  await page.waitForSelector("#ember107");
+  await page.click("#ember107");
+
   // Wait for the connections dialog to appear
-  console.log("Waiting for the connections dialog to appear")
+  console.log("Waiting for the connections dialog to appear");
   await page.waitForSelector(".artdeco-modal__content");
 
-  // Get the list of connections
-  console.log("Geting the list of connections")
-  const connections = await page.$$('[data-control-name="invite_profile"]');
-  console.timeLog("Connections List",connections);
-
-  // Iterate through connections and send invitations
-  console.log("Iterating through connections and sending invitations...")
-  for (let connection of connections) {
-    // Click the "Invite" button
-    console.log("Clicking the \"Invite\" button")
-    await connection.click('[data-control-name="invite"]');
-
-    // Wait for the invitation to be sent
-    console.log("Waiting for the invitation to be sent")
-    await page.waitForTimeout(500);
-
-    // Close the connection profile dialog
-    console.log("Closing the connection profile dialog")
-    await page.click(".artdeco-modal__dismiss");
-
-    // Wait for the dialog to close
-    console.log("Waiting for the dialog to close")
-    await page.waitForTimeout(500);
+  let connectionsCount = await loadConnections(page);
+  if (connectionsCount <= 0) {
+    console.log(
+      "You should have atleast 1 Connection in you linkedin profile to send event invitation"
+    );
+    await browser.close();
+    return;
   }
 
+  console.log("Select all connections");
+  await page.waitForSelector(".invitee-picker__result-item");
+  await page.click(".invitee-picker__result-item");
+
+  // Click on "Invite x" button
+  await clickOnElementWithText(page, `Invite ${connectionsCount}`);
+
   // Close the browser
-  console.log("Closing the browser")
+  console.log("Closing the browser");
   await browser.close();
 }
+
+async function loadConnections(page, totalConnections = undefined) {
+  await page.waitForTimeout(2000);
+  await page.waitForSelector(".scaffold-finite-scroll__load-button");
+  await page.click(".scaffold-finite-scroll__load-button");
+
+  let connections = await page.$$(".invitee-picker__result-item");
+  console.log("CONNECTIONS:::", connections.length);
+
+  if (connections.length == totalConnections) {
+    console.log("Total Connections is::", connections.length);
+    return connections.length;
+  }
+  console.log("Inside recursive logic");
+  return await loadConnections(page, connections.length);
+}
+
+// Function to click on element with specific text
+async function clickOnElementWithText(page, text) {
+  const element = await page.evaluateHandle((text) => {
+    const elements = Array.from(document.querySelectorAll("*"));
+    const matchedElement = elements.find((element) =>
+      element.innerText.includes(text)
+    );
+    return matchedElement;
+  }, text);
+  if (element) {
+    await page.waitForSelector();
+    await element.click();
+    console.log(`Invitation Sent to Total ${connectionsCount} connections.`);
+    return;
+  }
+}
+
+const askEventId = async () => {
+  const answers = await inquirer.prompt([
+    {
+      message: "What is your linkedin Event Id?",
+      name: "eventId",
+      type: "string",
+    },
+  ]);
+  console.log(`Linkedin Event Id is::, ${answers.eventId}!`);
+  return answers.eventId;
+};
 
 sendEventInvitations()
   .then(() => console.log("Event invitations sent successfully!"))
