@@ -11,6 +11,8 @@ async function sendEventInvitations() {
   const page = await browser.newPage();
   const { LINKEDIN_USERNAME, LINKEDIN_PASSWORD } = process.env;
 
+
+  await page.waitForTimeout(randomNumber());
   // Login to LinkedIn
   console.log("Login to LinkedIn");
   await page.goto("https://www.linkedin.com/login");
@@ -22,23 +24,35 @@ async function sendEventInvitations() {
   ]);
 
   // Go to the event page
+  await page.waitForTimeout(randomNumber());
   console.log("Going to the event page");
   await page.goto(`https://www.linkedin.com/events/${eventId}/comments/`, {
     timeout: 60000,
   });
 
+  await page.waitForTimeout(randomNumber());
   // Get the "Share" button and click it
   console.log('Clicking on "Share" button');
   await page.waitForSelector(".artdeco-button--primary");
   await page.click(".artdeco-button--primary");
 
+  await page.waitForTimeout(randomNumber());
   // Get the "Invite connections" button and click it
   console.log('Clicking on "Invite connections" button');
-  await page.waitForSelector("#ember107");
-  await page.click("#ember107");
+  // Wait for the ul element to be visible
+  await page.waitForSelector('ul[aria-labelledby="share-on-linkedin"]');
+  // Click on the first li element within the ul
+  await page.evaluate(() => {
+    const ul = document.querySelector(
+      'ul[aria-labelledby="share-on-linkedin"]'
+    );
+    const firstLi = ul.querySelector("li");
+    firstLi.click();
+  });
 
   // Wait for the connections dialog to appear
   console.log("Waiting for the connections dialog to appear");
+  await page.waitForTimeout(randomNumber());
   await page.waitForSelector(".artdeco-modal__content");
 
   let connectionsCount = await loadConnections(page);
@@ -51,11 +65,18 @@ async function sendEventInvitations() {
   }
 
   console.log("Select all connections");
+  await page.waitForTimeout(randomNumber());
   await page.waitForSelector(".invitee-picker__result-item");
+  await page.waitForTimeout(randomNumber());
   await page.click(".invitee-picker__result-item");
 
   // Click on "Invite x" button
-  await clickOnElementWithText(page, `Invite ${connectionsCount}`);
+  // Wait for the button element to be visible
+  await page.waitForTimeout(randomNumber());
+  await page.waitForSelector(".invitee-picker__footer button");
+  // Click on the button
+  await page.waitForTimeout(randomNumber());
+  await page.click(".invitee-picker__footer button");
 
   // Close the browser
   console.log("Closing the browser");
@@ -63,7 +84,7 @@ async function sendEventInvitations() {
 }
 
 async function loadConnections(page, totalConnections = undefined) {
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(randomNumber());
   await page.waitForSelector(".scaffold-finite-scroll__load-button");
   await page.click(".scaffold-finite-scroll__load-button");
 
@@ -78,34 +99,20 @@ async function loadConnections(page, totalConnections = undefined) {
   return await loadConnections(page, connections.length);
 }
 
-// Function to click on element with specific text
-async function clickOnElementWithText(page, text) {
-  const element = await page.evaluateHandle((text) => {
-    const elements = Array.from(document.querySelectorAll("*"));
-    const matchedElement = elements.find((element) =>
-      element.innerText.includes(text)
-    );
-    return matchedElement;
-  }, text);
-  if (element) {
-    await page.waitForSelector();
-    await element.click();
-    console.log(`Invitation Sent to Total ${connectionsCount} connections.`);
-    return;
-  }
-}
-
 const askEventId = async () => {
   const answers = await inquirer.prompt([
     {
-      message: "What is your linkedin Event Id?",
+      message: "What is your linkedin Event Id ?",
       name: "eventId",
       type: "string",
     },
   ]);
-  console.log(`Linkedin Event Id is::, ${answers.eventId}!`);
+  console.log(`Linkedin Event Id is:: ${answers.eventId}!`);
   return answers.eventId;
 };
+
+// Generate a random number between min and max (inclusive)
+const randomNumber = () => Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
 
 sendEventInvitations()
   .then(() => console.log("Event invitations sent successfully!"))
